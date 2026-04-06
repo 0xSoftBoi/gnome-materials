@@ -1,0 +1,2 @@
+/Users/mongolraider/code/gnome-materials/model/gnn.py:68: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at /Users/runner/work/pytorch/pytorch/pytorch/torch/csrc/utils/tensor_new.cpp:256.)
+  batch_predictions = torch.tensor(batch_predictions, dtype=torch.float32)  # (n_passes, batch_size, 1)
