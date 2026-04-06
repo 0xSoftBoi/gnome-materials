@@ -1,0 +1,5 @@
+torch>=2.0
+torch-geometric
+matplotlib
+numpy
+scikit-learn
