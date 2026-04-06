@@ -32,10 +32,11 @@ def main():
     print(f"\nDevice: {device}")
 
     # ========== 1. Load dataset ==========
-    print("\n[1] Loading dataset...")
-    dataset = SyntheticCrystalDataset(n_samples=500, seed=42)
+    print("\n[1] Loading dataset (v2: 2000 samples, 26-dim features)...")
+    dataset = SyntheticCrystalDataset(n_samples=2000, seed=42)
     print(f"    Dataset size: {len(dataset)} samples")
-    print(f"    Element vocabulary: {len(ELEMENTS)} ({', '.join(ELEMENTS[:10])}...)")
+    print(f"    Element vocabulary: {len(ELEMENTS)}")
+    print(f"    Feature dimension: 26 (20 one-hot + 6 physical properties)")
 
     # ========== 2. Setup initial train/candidate split ==========
     print("\n[2] Setting up initial labeled and candidate pools...")
@@ -43,7 +44,7 @@ def main():
     np.random.seed(42)
     np.random.shuffle(all_indices)
 
-    initial_train_size = 50
+    initial_train_size = 100
     initial_train_indices = all_indices[:initial_train_size]
     candidate_indices = all_indices[initial_train_size:]
 
@@ -66,9 +67,9 @@ def main():
     for strategy_name, strategy in strategies:
         print(f"\n    --- {strategy_name} ---")
 
-        # Create fresh model for each strategy
-        in_channels = len(ELEMENTS)
-        model = GNNRegressor(in_channels=in_channels, hidden_dim=64, dropout_p=0.3)
+        # Create fresh model for each strategy (v2: 26-dim input)
+        in_channels = 26  # 20 one-hot + 6 physical
+        model = GNNRegressor(in_channels=in_channels, hidden_dim=128, dropout_p=0.3)
 
         # Create AL loop
         loop = ActiveLearningLoop(
@@ -80,11 +81,11 @@ def main():
             device=device
         )
 
-        # Run AL loop
+        # Run AL loop (v2: 10 iters, 30 per iter, 30 epochs)
         loop.run(
-            n_iters=5,
-            k_per_iter=20,
-            epochs_per_iter=20,
+            n_iters=10,
+            k_per_iter=30,
+            epochs_per_iter=30,
             batch_size=32,
             lr=1e-3
         )
@@ -96,7 +97,7 @@ def main():
     print("\n[5] Evaluating results...")
     strategy_names = [name for name, _ in strategies]
 
-    plot_comparison(histories, strategy_names, output_path='results/comparison.png')
+    plot_comparison(histories, strategy_names, output_path='results/comparison_v2.png')
     print_summary(histories, strategy_names)
 
     print("\n" + "=" * 60)

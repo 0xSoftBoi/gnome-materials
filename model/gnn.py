@@ -8,7 +8,7 @@ from torch_geometric.loader import DataLoader
 class GNNRegressor(nn.Module):
     """Graph Neural Network with dropout for uncertainty estimation."""
 
-    def __init__(self, in_channels, hidden_dim=64, dropout_p=0.3):
+    def __init__(self, in_channels, hidden_dim=128, dropout_p=0.3):
         super().__init__()
         self.dropout_p = dropout_p
 

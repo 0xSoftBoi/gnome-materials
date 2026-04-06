@@ -1,0 +1,296 @@
+/Users/mongolraider/code/gnome-materials/model/gnn.py:68: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at /Users/runner/work/pytorch/pytorch/pytorch/torch/csrc/utils/tensor_new.cpp:256.)
+  batch_predictions = torch.tensor(batch_predictions, dtype=torch.float32)  # (n_passes, batch_size, 1)
+============================================================
+GNN Materials Discovery with Active Learning
+============================================================
+
+Device: cpu
+
+[1] Loading dataset (v2: 2000 samples, 26-dim features)...
+    Dataset size: 2000 samples
+    Element vocabulary: 20
+    Feature dimension: 26 (20 one-hot + 6 physical properties)
+
+[2] Setting up initial labeled and candidate pools...
+    Initial training set: 100 samples
+    Candidate pool: 1900 samples
+
+[3] Setting up selection strategies...
+    Strategies: ['Random', 'Greedy (μ)', 'UCB (μ - λσ)']
+
+[4] Running active learning loops...
+
+    --- Random ---
+
+=== Iteration 1/10 ===
+Epoch 10/30: Train Loss = 0.1971, Val Loss = 0.1363
+Epoch 20/30: Train Loss = 0.1341, Val Loss = 0.1395
+Epoch 30/30: Train Loss = 0.1466, Val Loss = 0.1478
+  Best found: -2.1940
+  Top-10 discovered: 0/10
+  Training set size: 130
+
+=== Iteration 2/10 ===
+Epoch 10/30: Train Loss = 0.1156, Val Loss = 0.1203
+Epoch 20/30: Train Loss = 0.1579, Val Loss = 0.1076
+Epoch 30/30: Train Loss = 0.1343, Val Loss = 0.1092
+  Best found: -2.1940
+  Top-10 discovered: 0/10
+  Training set size: 160
+
+=== Iteration 3/10 ===
+Epoch 10/30: Train Loss = 0.1232, Val Loss = 0.1174
+Epoch 20/30: Train Loss = 0.1324, Val Loss = 0.1194
+Epoch 30/30: Train Loss = 0.1520, Val Loss = 0.1224
+  Best found: -2.1940
+  Top-10 discovered: 0/10
+  Training set size: 190
+
+=== Iteration 4/10 ===
+Epoch 10/30: Train Loss = 0.1241, Val Loss = 0.1142
+Epoch 20/30: Train Loss = 0.1251, Val Loss = 0.1099
+Epoch 30/30: Train Loss = 0.1232, Val Loss = 0.1040
+  Best found: -2.4964
+  Top-10 discovered: 1/10
+  Training set size: 220
+
+=== Iteration 5/10 ===
+Epoch 10/30: Train Loss = 0.1152, Val Loss = 0.1119
+Epoch 20/30: Train Loss = 0.1147, Val Loss = 0.1054
+Epoch 30/30: Train Loss = 0.1045, Val Loss = 0.0994
+  Best found: -2.4964
+  Top-10 discovered: 1/10
+  Training set size: 250
+
+=== Iteration 6/10 ===
+Epoch 10/30: Train Loss = 0.1101, Val Loss = 0.1013
+Epoch 20/30: Train Loss = 0.1127, Val Loss = 0.0941
+Epoch 30/30: Train Loss = 0.1052, Val Loss = 0.0921
+  Best found: -2.4964
+  Top-10 discovered: 2/10
+  Training set size: 280
+
+=== Iteration 7/10 ===
+Epoch 10/30: Train Loss = 0.1101, Val Loss = 0.0949
+Epoch 20/30: Train Loss = 0.1101, Val Loss = 0.0978
+Epoch 30/30: Train Loss = 0.1167, Val Loss = 0.0959
+  Best found: -2.4964
+  Top-10 discovered: 2/10
+  Training set size: 310
+
+=== Iteration 8/10 ===
+Epoch 10/30: Train Loss = 0.1009, Val Loss = 0.0915
+Epoch 20/30: Train Loss = 0.1057, Val Loss = 0.0960
+Epoch 30/30: Train Loss = 0.1024, Val Loss = 0.0991
+  Best found: -2.4964
+  Top-10 discovered: 2/10
+  Training set size: 340
+
+=== Iteration 9/10 ===
+Epoch 10/30: Train Loss = 0.0998, Val Loss = 0.0857
+Epoch 20/30: Train Loss = 0.0972, Val Loss = 0.0863
+Epoch 30/30: Train Loss = 0.1050, Val Loss = 0.0827
+  Best found: -2.4964
+  Top-10 discovered: 2/10
+  Training set size: 370
+
+=== Iteration 10/10 ===
+Epoch 10/30: Train Loss = 0.0940, Val Loss = 0.0877
+Epoch 20/30: Train Loss = 0.1001, Val Loss = 0.0982
+Epoch 30/30: Train Loss = 0.0980, Val Loss = 0.0851
+  Best found: -2.5007
+  Top-10 discovered: 3/10
+  Training set size: 400
+
+    --- Greedy (μ) ---
+
+=== Iteration 1/10 ===
+Epoch 10/30: Train Loss = 0.2732, Val Loss = 0.1369
+Epoch 20/30: Train Loss = 0.1423, Val Loss = 0.1162
+Epoch 30/30: Train Loss = 0.1267, Val Loss = 0.0994
+  Best found: -2.7989
+  Top-10 discovered: 3/10
+  Training set size: 130
+
+=== Iteration 2/10 ===
+Epoch 10/30: Train Loss = 0.1700, Val Loss = 0.1175
+Epoch 20/30: Train Loss = 0.1114, Val Loss = 0.1387
+Epoch 30/30: Train Loss = 0.1504, Val Loss = 0.1219
+  Best found: -2.7989
+  Top-10 discovered: 5/10
+  Training set size: 160
+
+=== Iteration 3/10 ===
+Epoch 10/30: Train Loss = 0.1239, Val Loss = 0.1137
+Epoch 20/30: Train Loss = 0.1285, Val Loss = 0.1393
+Epoch 30/30: Train Loss = 0.1564, Val Loss = 0.1176
+  Best found: -2.7989
+  Top-10 discovered: 5/10
+  Training set size: 190
+
+=== Iteration 4/10 ===
+Epoch 10/30: Train Loss = 0.1482, Val Loss = 0.1309
+Epoch 20/30: Train Loss = 0.1546, Val Loss = 0.1203
+Epoch 30/30: Train Loss = 0.1335, Val Loss = 0.1206
+  Best found: -2.7989
+  Top-10 discovered: 5/10
+  Training set size: 220
+
+=== Iteration 5/10 ===
+Epoch 10/30: Train Loss = 0.1463, Val Loss = 0.1205
+Epoch 20/30: Train Loss = 0.1372, Val Loss = 0.1148
+Epoch 30/30: Train Loss = 0.1294, Val Loss = 0.1136
+  Best found: -2.7989
+  Top-10 discovered: 6/10
+  Training set size: 250
+
+=== Iteration 6/10 ===
+Epoch 10/30: Train Loss = 0.1347, Val Loss = 0.1118
+Epoch 20/30: Train Loss = 0.1158, Val Loss = 0.1148
+Epoch 30/30: Train Loss = 0.1278, Val Loss = 0.1154
+  Best found: -2.7989
+  Top-10 discovered: 7/10
+  Training set size: 280
+
+=== Iteration 7/10 ===
+Epoch 10/30: Train Loss = 0.1362, Val Loss = 0.1056
+Epoch 20/30: Train Loss = 0.1288, Val Loss = 0.1157
+Epoch 30/30: Train Loss = 0.1213, Val Loss = 0.1125
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 310
+
+=== Iteration 8/10 ===
+Epoch 10/30: Train Loss = 0.1342, Val Loss = 0.1163
+Epoch 20/30: Train Loss = 0.1220, Val Loss = 0.1064
+Epoch 30/30: Train Loss = 0.1201, Val Loss = 0.1181
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 340
+
+=== Iteration 9/10 ===
+Epoch 10/30: Train Loss = 0.1204, Val Loss = 0.0995
+Epoch 20/30: Train Loss = 0.1099, Val Loss = 0.0923
+Epoch 30/30: Train Loss = 0.1132, Val Loss = 0.1089
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 370
+
+=== Iteration 10/10 ===
+Epoch 10/30: Train Loss = 0.1159, Val Loss = 0.1027
+Epoch 20/30: Train Loss = 0.1170, Val Loss = 0.0950
+Epoch 30/30: Train Loss = 0.1180, Val Loss = 0.0923
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 400
+
+    --- UCB (μ - λσ) ---
+
+=== Iteration 1/10 ===
+Epoch 10/30: Train Loss = 0.1732, Val Loss = 0.1624
+Epoch 20/30: Train Loss = 0.1365, Val Loss = 0.1087
+Epoch 30/30: Train Loss = 0.1361, Val Loss = 0.1197
+  Best found: -2.7989
+  Top-10 discovered: 2/10
+  Training set size: 130
+
+=== Iteration 2/10 ===
+Epoch 10/30: Train Loss = 0.1798, Val Loss = 0.1114
+Epoch 20/30: Train Loss = 0.1190, Val Loss = 0.1825
+Epoch 30/30: Train Loss = 0.1842, Val Loss = 0.1420
+  Best found: -2.7989
+  Top-10 discovered: 3/10
+  Training set size: 160
+
+=== Iteration 3/10 ===
+Epoch 10/30: Train Loss = 0.1673, Val Loss = 0.1389
+Epoch 20/30: Train Loss = 0.1909, Val Loss = 0.1497
+Epoch 30/30: Train Loss = 0.1437, Val Loss = 0.1425
+  Best found: -2.7989
+  Top-10 discovered: 7/10
+  Training set size: 190
+
+=== Iteration 4/10 ===
+Epoch 10/30: Train Loss = 0.1736, Val Loss = 0.1326
+Epoch 20/30: Train Loss = 0.1476, Val Loss = 0.1363
+Epoch 30/30: Train Loss = 0.1617, Val Loss = 0.1327
+  Best found: -2.7989
+  Top-10 discovered: 8/10
+  Training set size: 220
+
+=== Iteration 5/10 ===
+Epoch 10/30: Train Loss = 0.1549, Val Loss = 0.1290
+Epoch 20/30: Train Loss = 0.1430, Val Loss = 0.1240
+Epoch 30/30: Train Loss = 0.1505, Val Loss = 0.1292
+  Best found: -2.7989
+  Top-10 discovered: 8/10
+  Training set size: 250
+
+=== Iteration 6/10 ===
+Epoch 10/30: Train Loss = 0.1510, Val Loss = 0.1466
+Epoch 20/30: Train Loss = 0.1473, Val Loss = 0.1421
+Epoch 30/30: Train Loss = 0.1499, Val Loss = 0.1294
+  Best found: -2.7989
+  Top-10 discovered: 8/10
+  Training set size: 280
+
+=== Iteration 7/10 ===
+Epoch 10/30: Train Loss = 0.1385, Val Loss = 0.1293
+Epoch 20/30: Train Loss = 0.1486, Val Loss = 0.1591
+Epoch 30/30: Train Loss = 0.1538, Val Loss = 0.1333
+  Best found: -2.7989
+  Top-10 discovered: 8/10
+  Training set size: 310
+
+=== Iteration 8/10 ===
+Epoch 10/30: Train Loss = 0.1400, Val Loss = 0.1263
+Epoch 20/30: Train Loss = 0.1350, Val Loss = 0.1164
+Epoch 30/30: Train Loss = 0.1298, Val Loss = 0.1309
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 340
+
+=== Iteration 9/10 ===
+Epoch 10/30: Train Loss = 0.1544, Val Loss = 0.1174
+Epoch 20/30: Train Loss = 0.1391, Val Loss = 0.1360
+Epoch 30/30: Train Loss = 0.1213, Val Loss = 0.1187
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 370
+
+=== Iteration 10/10 ===
+Epoch 10/30: Train Loss = 0.1382, Val Loss = 0.1181
+Epoch 20/30: Train Loss = 0.1322, Val Loss = 0.1180
+Epoch 30/30: Train Loss = 0.1328, Val Loss = 0.1099
+  Best found: -2.7989
+  Top-10 discovered: 9/10
+  Training set size: 400
+
+[5] Evaluating results...
+
+Plot saved to results/comparison_v2.png
+
+============================================================
+ACTIVE LEARNING SUMMARY
+============================================================
+
+Random:
+  Final best value: -2.5007
+  Overall best found: -2.5007
+  Top-10 discovered: 30.0%
+
+Greedy (μ):
+  Final best value: -2.7989
+  Overall best found: -2.7989
+  Top-10 discovered: 90.0%
+
+UCB (μ - λσ):
+  Final best value: -2.7989
+  Overall best found: -2.7989
+  Top-10 discovered: 90.0%
+
+============================================================
+
+============================================================
+Pipeline complete!
+============================================================
