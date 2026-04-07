@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch_geometric.loader import DataLoader
 from sklearn.metrics import mean_absolute_error
@@ -44,6 +45,7 @@ class ActiveLearningLoop:
 
         for iteration in range(n_iters):
             print(f"\n=== Iteration {iteration + 1}/{n_iters} ===")
+            sys.stdout.flush()
 
             # Train on labeled set
             train_data = [self.dataset[i] for i in self.train_indices]
