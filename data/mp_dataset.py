@@ -9,7 +9,7 @@ import numpy as np
 
 # Constants
 MP_IN_CHANNELS = 95  # 89 one-hot + 6 physical properties
-NEIGHBOR_CUTOFF_ANGSTROM = 5.0
+KNN_NEIGHBORS = 4  # k-NN edges (guaranteed, like synthetic data)
 MAX_ATOMS_PER_CELL = 50
 E_ABOVE_HULL_THRESHOLD = 0.1  # eV/atom (stability criterion)
 DEFAULT_CACHE_FILE = Path(__file__).parent / 'mp_cache' / 'structures.pt'
@@ -223,16 +223,28 @@ class MPCrystalDataset:
                 props = MP_ELEMENT_PROPERTIES[symbol]
                 x[i, 89:95] = torch.tensor(props, dtype=torch.float32)
 
-        # Edge list: structure neighbors within cutoff
-        neighbor_list = structure.get_neighbor_list(r=NEIGHBOR_CUTOFF_ANGSTROM)
-        if not neighbor_list[0]:  # No neighbors found
-            return None
+        # Edge list: k-NN in Cartesian space (guaranteed edges, like synthetic data)
+        if n_atoms == 1:
+            return None  # Single atom has no edges
 
-        center_indices, neighbor_indices, _, _ = neighbor_list
-        edge_index = torch.tensor(
-            [center_indices, neighbor_indices],
-            dtype=torch.int64
+        coords = torch.tensor(
+            [site.coords for site in structure.sites],
+            dtype=torch.float32
         )
+
+        # k-NN edges: each atom to k closest neighbors
+        k = min(KNN_NEIGHBORS, n_atoms - 1)  # Cap at n_atoms - 1
+        distances = torch.cdist(coords, coords)  # (n_atoms, n_atoms)
+
+        # Get k nearest neighbors for each atom (excluding self)
+        _, neighbor_indices = torch.topk(distances, k=k+1, dim=1, largest=False)
+        neighbor_indices = neighbor_indices[:, 1:]  # Remove self (index 0)
+
+        # Build edge list: [center_indices, neighbor_indices]
+        center_indices = torch.arange(n_atoms).unsqueeze(1).expand(-1, k).flatten()
+        neighbor_indices = neighbor_indices.flatten()
+
+        edge_index = torch.stack([center_indices, neighbor_indices], dim=0).long()
 
         # Target: formation energy
         y = torch.tensor([formation_energy_per_atom], dtype=torch.float32)
