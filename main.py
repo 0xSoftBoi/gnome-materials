@@ -47,10 +47,10 @@ def run_al_experiment(dataset, initial_train_indices, candidate_indices, strateg
 
         # Run AL loop
         loop.run(
-            n_iters=10,
-            k_per_iter=30,
+            n_iters=5,
+            k_per_iter=20,
             epochs_per_iter=30,
-            batch_size=32,
+            batch_size=16,
             lr=1e-3
         )
 

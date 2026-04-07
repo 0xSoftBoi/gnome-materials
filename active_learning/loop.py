@@ -64,7 +64,7 @@ class ActiveLearningLoop:
             candidate_data = [self.dataset[i] for i in self.candidate_indices]
             candidate_loader = DataLoader(candidate_data, batch_size=batch_size, shuffle=False)
 
-            means, stds = self.model.predict_with_uncertainty(candidate_loader, n_passes=20, device=self.device)
+            means, stds = self.model.predict_with_uncertainty(candidate_loader, n_passes=10, device=self.device)
 
             # Select top-k via strategy
             selected_local_indices = self.strategy.select(candidate_data, means, stds, k=k_per_iter)

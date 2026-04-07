@@ -47,8 +47,13 @@ class GNNRegressor(nn.Module):
     def predict_with_uncertainty(self, loader, n_passes=20, device='cpu'):
         """MC Dropout: multiple forward passes to estimate μ and σ."""
         self.eval()
-        all_preds = []
 
+        # Compute statistics incrementally to avoid memory bloat
+        means = []
+        stds = []
+
+        # First pass: collect all predictions
+        all_preds = []
         with torch.no_grad():
             for _ in range(n_passes):
                 batch_preds = []
@@ -58,22 +63,22 @@ class GNNRegressor(nn.Module):
                     batch_preds.append(out.cpu().numpy())
                 all_preds.append(batch_preds)
 
-        # Stack predictions: shape (n_passes, n_batches, batch_size, 1)
-        means = []
-        stds = []
-
-        n_batches = len(loader)
+        # Second pass: compute stats per batch (allows GC of all_preds)
+        n_batches = len(all_preds[0])
         for batch_idx in range(n_batches):
-            batch_predictions = [all_preds[p][batch_idx] for p in range(n_passes)]
-            batch_predictions = torch.tensor(batch_predictions, dtype=torch.float32)  # (n_passes, batch_size, 1)
+            batch_predictions = np.array([all_preds[p][batch_idx] for p in range(n_passes)])
+            batch_predictions = torch.tensor(batch_predictions, dtype=torch.float32)
 
-            mu = batch_predictions.mean(dim=0)  # (batch_size, 1)
-            sigma = batch_predictions.std(dim=0)  # (batch_size, 1)
+            mu = batch_predictions.mean(dim=0)
+            sigma = batch_predictions.std(dim=0)
 
             means.append(mu)
             stds.append(sigma)
 
-        means = torch.cat(means, dim=0)  # (total_samples, 1)
+        # Clear all_preds immediately after stats computed
+        del all_preds
+
+        means = torch.cat(means, dim=0)
         stds = torch.cat(stds, dim=0)
 
         return means.squeeze(-1).numpy(), stds.squeeze(-1).numpy()
