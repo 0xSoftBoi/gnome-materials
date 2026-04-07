@@ -8,6 +8,7 @@ import os
 import sys
 import torch
 import numpy as np
+import argparse
 
 # Set seeds for reproducibility
 np.random.seed(42)
@@ -17,13 +18,14 @@ torch.manual_seed(42)
 sys.path.insert(0, os.path.dirname(__file__))
 
 from data.dataset import load_dataset, SyntheticCrystalDataset, generate_candidates, ELEMENTS
+from data.mp_dataset import MPCrystalDataset, MP_IN_CHANNELS
 from model.gnn import GNNRegressor
 from active_learning.strategies import RandomStrategy, GreedyStrategy, UCBStrategy
 from active_learning.loop import ActiveLearningLoop
 from evaluation.metrics import plot_comparison, print_summary, plot_scaling_analysis, plot_lambda_tuning
 
 
-def run_al_experiment(dataset, initial_train_indices, candidate_indices, strategies, device='cpu', experiment_name='v2'):
+def run_al_experiment(dataset, initial_train_indices, candidate_indices, strategies, device='cpu', experiment_name='v2', in_channels=26):
     """Run a single AL experiment with given strategies."""
     histories = []
 
@@ -31,7 +33,6 @@ def run_al_experiment(dataset, initial_train_indices, candidate_indices, strateg
         print(f"\n    --- {strategy_name} ---")
 
         # Create fresh model for each strategy
-        in_channels = 26  # 20 one-hot + 6 physical
         model = GNNRegressor(in_channels=in_channels, hidden_dim=128, dropout_p=0.3)
 
         # Create AL loop
@@ -190,21 +191,95 @@ def main_lambda_tuning():
     return lambda_histories
 
 
-if __name__ == '__main__':
+def main_mp():
+    """Materials Project experiment: run AL on real DFT-computed structures."""
     print("\n" + "=" * 80)
-    print("GNN MATERIALS DISCOVERY: SCALING & LAMBDA TUNING EXPERIMENTS")
+    print("EXPERIMENT C: MATERIALS PROJECT (Real DFT Data)")
     print("=" * 80)
 
-    # Run both experiments
-    print("\nRunning scaling experiment...")
-    scaling_results = main_scaling()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Device: {device}")
 
-    print("\n\nRunning lambda tuning experiment...")
-    lambda_results = main_lambda_tuning()
+    # Load MP dataset
+    print(f"\n[1] Loading Materials Project dataset...")
+    try:
+        dataset = MPCrystalDataset(max_structures=None)  # Download all
+    except EnvironmentError as e:
+        print(f"ERROR: {e}")
+        return None
+
+    print(f"    Total structures: {len(dataset)}")
+
+    # Setup split
+    print(f"[2] Setting up labeled/candidate pools...")
+    all_indices = list(range(len(dataset)))
+    np.random.seed(42)
+    np.random.shuffle(all_indices)
+
+    initial_train_size = 100
+    initial_train_indices = all_indices[:initial_train_size]
+    candidate_indices = all_indices[initial_train_size:]
+
+    budget_pct = (10 * 30 / len(candidate_indices)) * 100
+    print(f"    Initial training: {len(initial_train_indices)}")
+    print(f"    Candidate pool: {len(candidate_indices)}")
+    print(f"    Budget coverage: {budget_pct:.1f}%")
+
+    # Setup strategies
+    print(f"[3] Setting up strategies...")
+    strategies = [
+        ('Random', RandomStrategy()),
+        ('Greedy (μ)', GreedyStrategy()),
+        ('UCB (μ - λσ)', UCBStrategy(lambda_=1.0))
+    ]
+
+    # Run experiment
+    print(f"[4] Running active learning on real MP data...")
+    histories = run_al_experiment(
+        dataset,
+        initial_train_indices,
+        candidate_indices,
+        strategies,
+        device,
+        'mp_v4',
+        in_channels=MP_IN_CHANNELS
+    )
+
+    if histories:
+        # Save results
+        print(f"[5] Saving results...")
+        strategy_names = [name for name, _ in strategies]
+        plot_comparison(histories, strategy_names, output_path='results/comparison_mp_v4.png')
+        print_summary(histories, strategy_names)
+
+    return histories
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='GNN Materials Discovery Experiments')
+    parser.add_argument('--experiment', choices=['scaling', 'lambda', 'mp', 'all'], default='all',
+                       help='Which experiment to run')
+    args = parser.parse_args()
+
+    if args.experiment in ('scaling', 'all'):
+        print("\nRunning scaling experiment...")
+        scaling_results = main_scaling()
+
+    if args.experiment in ('lambda', 'all'):
+        print("\n\nRunning lambda tuning experiment...")
+        lambda_results = main_lambda_tuning()
+
+    if args.experiment in ('mp', 'all'):
+        print("\n\nRunning Materials Project experiment...")
+        mp_results = main_mp()
 
     print("\n" + "=" * 80)
     print("ALL EXPERIMENTS COMPLETE")
     print("=" * 80)
     print("\nResults saved to results/:")
-    print("  - Scaling: comparison_v2.png, comparison_v3-small.png, comparison_v3-large.png, scaling_analysis.png")
-    print("  - Lambda: lambda_tuning_0.0.png ... lambda_tuning_5.0.png, lambda_tuning_analysis.png")
+    if args.experiment in ('scaling', 'all'):
+        print("  - Scaling: comparison_v2.png, comparison_v3-small.png, comparison_v3-large.png, scaling_analysis.png")
+    if args.experiment in ('lambda', 'all'):
+        print("  - Lambda: lambda_tuning_0.0.png ... lambda_tuning_5.0.png, lambda_tuning_analysis.png")
+    if args.experiment in ('mp', 'all'):
+        print("  - Materials Project: comparison_mp_v4.png")

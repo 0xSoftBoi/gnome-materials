@@ -3,3 +3,5 @@ torch-geometric
 matplotlib
 numpy
 scikit-learn
+mp-api>=0.41.2
+pymatgen>=2024.1.1
