@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+pid.log
+
+# Large data caches (regenerable from Materials Project API)
+data/mp_cache/
+data/*.pt
+data/*.h5
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local results that shouldn't be versioned
+results/*.log
