@@ -23,7 +23,7 @@ class RandomStrategy(SelectionStrategy):
     """Select candidates uniformly at random."""
 
     def select(self, candidates, means, stds, k=20):
-        n = len(candidates)
+        n = len(candidates) if candidates is not None else len(means)
         k = min(k, n)
         indices = np.random.choice(n, size=k, replace=False)
         return indices
@@ -33,7 +33,7 @@ class GreedyStrategy(SelectionStrategy):
     """Select candidates with lowest predicted energy (best μ)."""
 
     def select(self, candidates, means, stds, k=20):
-        n = len(candidates)
+        n = len(candidates) if candidates is not None else len(means)
         k = min(k, n)
         # Lower energy = better (minimize)
         indices = np.argsort(means)[:k]
@@ -47,7 +47,7 @@ class UCBStrategy(SelectionStrategy):
         self.lambda_ = lambda_
 
     def select(self, candidates, means, stds, k=20):
-        n = len(candidates)
+        n = len(candidates) if candidates is not None else len(means)
         k = min(k, n)
         # Score: μ - λ*σ (lower is better for minimization)
         # λ weights how much we explore uncertain regions

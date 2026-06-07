@@ -191,6 +191,101 @@ def main_lambda_tuning():
     return lambda_histories
 
 
+def main_chgnet():
+    """CHGNet pre-trained surrogate experiment on real MP data."""
+    print("\n" + "=" * 80)
+    print("EXPERIMENT D: CHGNet SURROGATE (Pre-trained + MC Dropout)")
+    print("=" * 80)
+
+    import numpy as np
+    from data.mp_dataset_chgnet import MPStructureDataset
+    from model.chgnet_surrogate import CHGNetSurrogate
+    from active_learning.loop_chgnet import CHGNetALLoop
+    from active_learning.strategies import RandomStrategy, GreedyStrategy, UCBStrategy
+    from evaluation.metrics import plot_comparison, print_summary
+
+    # Load dataset (downloads raw structures if not cached)
+    print("\n[1] Loading raw MP structures...")
+    dataset = MPStructureDataset(max_structures=2000)
+    print(f"    Dataset size: {len(dataset)}")
+
+    # Split
+    print("[2] Setting up pools...")
+    all_indices = list(range(len(dataset)))
+    np.random.seed(42)
+    np.random.shuffle(all_indices)
+
+    initial_train_size = 100
+    train_indices = all_indices[:initial_train_size]
+    candidate_indices = all_indices[initial_train_size:]
+
+    budget = 10 * 30  # 10 iters × 30 candidates
+    coverage = budget / len(candidate_indices) * 100
+    print(f"    Initial labeled: {len(train_indices)}")
+    print(f"    Candidate pool: {len(candidate_indices)}")
+    print(f"    Budget coverage: {coverage:.1f}%")
+
+    strategies = [
+        ('Random', RandomStrategy()),
+        ('Greedy (μ)', GreedyStrategy()),
+        ('UCB (μ - λσ)', UCBStrategy(lambda_=1.0)),
+    ]
+
+    # Pre-compute all graphs ONCE and share across strategies
+    print("\n[3] Pre-computing graphs (shared across strategies)...")
+    _surrogate_for_graphs = CHGNetSurrogate(dropout_p=0.3, freeze_backbone=True)
+    all_indices = sorted(set(train_indices) | set(candidate_indices))
+    all_structures = dataset.get_structures(all_indices)
+    raw_graphs = _surrogate_for_graphs.precompute_graphs(all_structures)
+    shared_graph_cache = {idx: g for idx, g in zip(all_indices, raw_graphs)}
+    print(f"    Graph cache: {len(shared_graph_cache)} entries")
+    del _surrogate_for_graphs
+
+    histories = []
+    print("\n[4] Running AL strategies...")
+    for strategy_name, strategy in strategies:
+        print(f"\n    --- {strategy_name} ---")
+
+        surrogate = CHGNetSurrogate(dropout_p=0.3, freeze_backbone=True)
+
+        loop = CHGNetALLoop(
+            dataset=dataset,
+            surrogate=surrogate,
+            strategy=strategy,
+            train_indices=train_indices.copy(),
+            candidate_indices=candidate_indices.copy(),
+            graph_cache=shared_graph_cache,
+        )
+
+        loop.run(
+            n_iters=10,
+            k_per_iter=30,
+            epochs_per_iter=20,
+            lr=1e-3,
+            n_mc_passes=10,
+        )
+        histories.append(loop.get_history())
+
+    # Save results
+    print("\n[5] Saving results...")
+    strategy_names = [name for name, _ in strategies]
+
+    # Adapt histories for plot_comparison (expects 'top10_efficiency' key)
+    adapted = []
+    for h in histories:
+        adapted.append({
+            'best_found': h['best_found'],
+            'top10_efficiency': h['top100_efficiency'],  # top-100 recall
+            'val_mae': [0.0] * len(h['best_found']),
+        })
+
+    plot_comparison(adapted, strategy_names, output_path='results/comparison_chgnet.png',
+                    top_k=100, initial_train=100, k_per_iter=30)
+    print_summary(adapted, strategy_names, top_k=100)
+
+    return histories
+
+
 def main_mp():
     """Materials Project experiment: run AL on real DFT-computed structures."""
     print("\n" + "=" * 80)
@@ -257,7 +352,7 @@ def main_mp():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GNN Materials Discovery Experiments')
-    parser.add_argument('--experiment', choices=['scaling', 'lambda', 'mp', 'all'], default='all',
+    parser.add_argument('--experiment', choices=['scaling', 'lambda', 'mp', 'chgnet', 'all'], default='all',
                        help='Which experiment to run')
     args = parser.parse_args()
 
@@ -272,6 +367,10 @@ if __name__ == '__main__':
     if args.experiment in ('mp', 'all'):
         print("\n\nRunning Materials Project experiment...")
         mp_results = main_mp()
+
+    if args.experiment in ('chgnet',):
+        print("\n\nRunning CHGNet surrogate experiment...")
+        chgnet_results = main_chgnet()
 
     print("\n" + "=" * 80)
     print("ALL EXPERIMENTS COMPLETE")

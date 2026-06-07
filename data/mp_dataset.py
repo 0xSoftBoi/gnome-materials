@@ -228,7 +228,7 @@ class MPCrystalDataset:
             return None  # Single atom has no edges
 
         coords = torch.tensor(
-            [site.coords for site in structure.sites],
+            np.array([site.coords for site in structure.sites]),
             dtype=torch.float32
         )
 
