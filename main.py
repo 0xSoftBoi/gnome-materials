@@ -350,10 +350,127 @@ def main_mp():
     return histories
 
 
+def main_wbm(
+    summary_path='data/wbm_summary.csv.gz',
+    structs_path='data/wbm_init_structs.json.bz2',
+    max_structures=None,  # None = full 256K; set to e.g. 20000 for demo
+    initial_labeled=200,
+    n_iters=20,
+    k_per_iter=100,
+    shortlist_size=5000,
+    mc_passes=10,
+    epochs_per_iter=0,    # 0 = no fine-tuning (recommended for WBM)
+    output_path='results/wbm_al_results.png',
+):
+    """Active learning campaign on WBM (Matbench Discovery test set).
+
+    Simulates iterative materials discovery on 256K WBM crystal structures.
+    Each iteration fine-tunes a CHGNet surrogate on the current labeled set,
+    runs MC Dropout uncertainty estimation on a shortlist of candidates, and
+    selects the most promising structures for "DFT verification" (i.e., looks
+    up their DFT e_above_hull from the WBM summary).
+
+    The primary metric is the Discovery Acceleration Factor (DAF):
+        DAF = (stable found / budget) / (stable total / pool size)
+    A random strategy achieves DAF ≈ 1.0; perfect oracle ≈ 6x for WBM.
+
+    Key finding: epochs_per_iter=0 (no fine-tuning) outperforms fine-tuning
+    for this task. CHGNet was trained on 700K MP structures and is already
+    well-calibrated for WBM-style crystals. Fine-tuning on a small biased
+    initial set causes catastrophic forgetting.
+
+    Note: this is an iterative AL simulation, not the one-shot Matbench
+    Discovery leaderboard task (which ranks by a single model inference pass).
+    """
+    print("\n" + "=" * 80)
+    print("EXPERIMENT E: WBM ACTIVE LEARNING CAMPAIGN")
+    print("=" * 80)
+
+    import os
+    import numpy as np
+    from data.wbm_dataset import WBMDataset
+    from model.chgnet_surrogate import CHGNetSurrogate
+    from active_learning.loop_wbm import WBMALLoop
+    from active_learning.strategies import RandomStrategy, GreedyStrategy, UCBStrategy
+    from evaluation.wbm_metrics import plot_wbm_al_results, print_wbm_summary
+
+    # Download if not cached
+    if not os.path.exists(summary_path):
+        WBMDataset.download_summary(summary_path)
+    if not os.path.exists(structs_path):
+        WBMDataset.download_structures(structs_path)
+
+    print(f"\n[1] Loading WBM dataset...")
+    dataset = WBMDataset(
+        summary_path=summary_path,
+        structs_path=structs_path,
+        max_structures=max_structures,
+    )
+    print(f"    Pool: {len(dataset):,}  |  Stable: {dataset.n_stable:,}  |  "
+          f"Prevalence: {dataset.prevalence:.1%}")
+
+    # Random initial labeled set
+    np.random.seed(42)
+    all_ids = dataset.material_ids
+    initial_ids = list(np.random.choice(all_ids, size=initial_labeled, replace=False))
+    print(f"    Initial labeled: {initial_labeled}")
+    print(f"    Budget per iter: {k_per_iter}  |  Iters: {n_iters}")
+    print(f"    Total budget: {initial_labeled + n_iters * k_per_iter:,} "
+          f"({100*(initial_labeled + n_iters*k_per_iter)/len(dataset):.1f}% of pool)")
+
+    strategies = [
+        ('Random', RandomStrategy()),
+        ('Greedy (μ)', GreedyStrategy()),
+        ('UCB (μ - λσ)', UCBStrategy(lambda_=1.0)),
+    ]
+
+    histories = []
+    print("\n[2] Running AL strategies...")
+    for strategy_name, strategy in strategies:
+        print(f"\n    --- {strategy_name} ---")
+
+        surrogate = CHGNetSurrogate(dropout_p=0.3, freeze_backbone=True)
+
+        loop = WBMALLoop(
+            dataset=dataset,
+            surrogate=surrogate,
+            strategy=strategy,
+            initial_ids=initial_ids,
+            shortlist_size=shortlist_size,
+        )
+
+        loop.run(
+            n_iters=n_iters,
+            k_per_iter=k_per_iter,
+            mc_passes=mc_passes,
+            epochs_per_iter=epochs_per_iter,
+            lr=1e-3,
+        )
+        histories.append(loop.history)
+
+    # Save results
+    print("\n[3] Saving results...")
+    os.makedirs('results', exist_ok=True)
+    strategy_names = [name for name, _ in strategies]
+    plot_wbm_al_results(
+        histories, strategy_names,
+        n_stable_total=dataset.n_stable,
+        n_pool=len(dataset),
+        output_path=output_path,
+    )
+    print_wbm_summary(histories, strategy_names, dataset.n_stable, len(dataset))
+
+    return histories
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GNN Materials Discovery Experiments')
-    parser.add_argument('--experiment', choices=['scaling', 'lambda', 'mp', 'chgnet', 'all'], default='all',
-                       help='Which experiment to run')
+    parser.add_argument('--experiment',
+                        choices=['scaling', 'lambda', 'mp', 'chgnet', 'wbm', 'all'],
+                        default='all',
+                        help='Which experiment to run')
+    parser.add_argument('--wbm-max', type=int, default=None,
+                        help='Limit WBM pool size for quick demo (e.g. 20000)')
     args = parser.parse_args()
 
     if args.experiment in ('scaling', 'all'):
@@ -371,6 +488,10 @@ if __name__ == '__main__':
     if args.experiment in ('chgnet',):
         print("\n\nRunning CHGNet surrogate experiment...")
         chgnet_results = main_chgnet()
+
+    if args.experiment in ('wbm',):
+        print("\n\nRunning WBM active learning campaign...")
+        wbm_results = main_wbm(max_structures=args.wbm_max)
 
     print("\n" + "=" * 80)
     print("ALL EXPERIMENTS COMPLETE")

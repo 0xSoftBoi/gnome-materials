@@ -85,6 +85,23 @@ class CHGNetSurrogate:
         """Convert structures to CrystalGraphs on CPU."""
         return [self.model.graph_converter(s) for s in structures]
 
+    def predict_point(self, graphs):
+        """Single deterministic forward pass (dropout disabled).
+
+        Used for cheap full-pool ranking before MC Dropout shortlist selection.
+
+        Returns:
+            means (np.ndarray), shape (N,)
+        """
+        self.model.eval()
+        batch_size = 256
+        preds = []
+        with torch.no_grad():
+            for i in range(0, len(graphs), batch_size):
+                out = self.model(graphs[i:i + batch_size], task='e')
+                preds.extend(out['e'].tolist())
+        return np.array(preds)
+
     def predict_with_uncertainty(self, graphs, n_passes=20):
         """
         MC dropout inference over pre-computed CrystalGraphs.
