@@ -134,7 +134,12 @@ class WBMALLoop:
             sys.stdout.flush()
 
             if len(self.unlabeled_ids) < k_per_iter:
-                print("  Pool exhausted — stopping early.")
+                print(
+                    f"  WARNING: pool exhausted after {len(self.labeled_ids)} labels "
+                    f"({iteration}/{n_iters} iterations) — only {len(self.unlabeled_ids)} "
+                    f"candidates left, need {k_per_iter}. Stopping early; the history "
+                    f"is shorter than a full run. (Expected only on small demo pools.)"
+                )
                 break
 
             if not is_random:

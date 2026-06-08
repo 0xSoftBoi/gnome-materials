@@ -1,7 +1,10 @@
-torch>=2.0
+# For exact reproduction of the committed 5-seed results, pin to the versions you
+# ran (`pip freeze`). The bounds below just rule out the known-incompatible majors
+# (numpy 2.x and a future torch 3.x both break parts of this stack).
+torch>=2.0,<3.0
 torch-geometric
 matplotlib
-numpy
+numpy>=1.24,<2.0
 scikit-learn
 chgnet>=0.3.0
 mp-api>=0.41.2

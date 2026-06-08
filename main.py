@@ -10,7 +10,12 @@ import torch
 import numpy as np
 import argparse
 
-# Set seeds for reproducibility
+# Global seeds for the single-seed experiments (scaling, lambda-tuning, MP, CHGNet
+# demo). The multi-seed WBM benchmark does NOT rely on these — `main_wbm(seed=...)`
+# draws its own `np.random.default_rng(seed)` per run (see active_learning/loop_wbm.py).
+# NOTE: torch's RNG is only seeded here, so WBM's per-run MC-Dropout sampling currently
+# inherits this one global torch seed rather than a per-seed one; if you want the 5 WBM
+# seeds to differ in dropout draws too, add `torch.manual_seed(seed)` inside main_wbm.
 np.random.seed(42)
 torch.manual_seed(42)
 

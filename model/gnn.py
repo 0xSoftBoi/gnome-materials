@@ -25,7 +25,10 @@ class GNNRegressor(nn.Module):
         )
 
     def forward(self, x, edge_index, batch):
-        # Graph convolutions with dropout enabled at all times
+        # MC Dropout: `training=True` is INTENTIONAL, not a bug. We keep dropout
+        # active even under model.eval() so that repeated forward passes give a
+        # distribution of predictions whose spread is the epistemic uncertainty
+        # estimate (Gal & Ghahramani, 2016). Do not "fix" this to `self.training`.
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         x = F.dropout(x, p=self.dropout_p, training=True)
