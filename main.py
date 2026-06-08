@@ -360,7 +360,8 @@ def main_wbm(
     shortlist_size=5000,
     mc_passes=10,
     epochs_per_iter=0,    # 0 = no fine-tuning (recommended for WBM)
-    output_path='results/wbm_al_results.png',
+    seed=42,
+    output_path=None,     # defaults to results/wbm_al_results_seed{seed}.png
 ):
     """Active learning campaign on WBM (Matbench Discovery test set).
 
@@ -400,6 +401,9 @@ def main_wbm(
     if not os.path.exists(structs_path):
         WBMDataset.download_structures(structs_path)
 
+    if output_path is None:
+        output_path = f'results/wbm_al_results_seed{seed}.png'
+
     print(f"\n[1] Loading WBM dataset...")
     dataset = WBMDataset(
         summary_path=summary_path,
@@ -409,10 +413,10 @@ def main_wbm(
     print(f"    Pool: {len(dataset):,}  |  Stable: {dataset.n_stable:,}  |  "
           f"Prevalence: {dataset.prevalence:.1%}")
 
-    # Random initial labeled set
-    np.random.seed(42)
+    # Random initial labeled set (seeded for reproducibility)
+    rng = np.random.default_rng(seed)
     all_ids = dataset.material_ids
-    initial_ids = list(np.random.choice(all_ids, size=initial_labeled, replace=False))
+    initial_ids = list(rng.choice(all_ids, size=initial_labeled, replace=False))
     print(f"    Initial labeled: {initial_labeled}")
     print(f"    Budget per iter: {k_per_iter}  |  Iters: {n_iters}")
     print(f"    Total budget: {initial_labeled + n_iters * k_per_iter:,} "
@@ -437,6 +441,7 @@ def main_wbm(
             strategy=strategy,
             initial_ids=initial_ids,
             shortlist_size=shortlist_size,
+            rng_seed=seed,
         )
 
         loop.run(
@@ -450,6 +455,7 @@ def main_wbm(
 
     # Save results
     print("\n[3] Saving results...")
+    import json
     os.makedirs('results', exist_ok=True)
     strategy_names = [name for name, _ in strategies]
     plot_wbm_al_results(
@@ -459,6 +465,18 @@ def main_wbm(
         output_path=output_path,
     )
     print_wbm_summary(histories, strategy_names, dataset.n_stable, len(dataset))
+
+    # Persist raw history for multi-seed aggregation
+    json_path = output_path.replace('.png', '.json')
+    with open(json_path, 'w') as f:
+        json.dump({
+            'seed': seed,
+            'n_pool': len(dataset),
+            'n_stable': dataset.n_stable,
+            'strategy_names': strategy_names,
+            'histories': histories,
+        }, f)
+    print(f"Raw history saved to {json_path}")
 
     return histories
 
@@ -471,6 +489,8 @@ if __name__ == '__main__':
                         help='Which experiment to run')
     parser.add_argument('--wbm-max', type=int, default=None,
                         help='Limit WBM pool size for quick demo (e.g. 20000)')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Random seed for initial labeled set and shortlist sampling')
     args = parser.parse_args()
 
     if args.experiment in ('scaling', 'all'):
@@ -491,7 +511,7 @@ if __name__ == '__main__':
 
     if args.experiment in ('wbm',):
         print("\n\nRunning WBM active learning campaign...")
-        wbm_results = main_wbm(max_structures=args.wbm_max)
+        wbm_results = main_wbm(max_structures=args.wbm_max, seed=args.seed)
 
     print("\n" + "=" * 80)
     print("ALL EXPERIMENTS COMPLETE")

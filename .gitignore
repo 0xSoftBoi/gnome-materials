@@ -32,3 +32,4 @@ results/*.png
 
 # Local results that shouldn't be versioned
 results/*.log
+results/*.json
