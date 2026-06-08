@@ -3,148 +3,139 @@
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![CHGNet](https://img.shields.io/badge/surrogate-CHGNet%20v0.3-orange)
-![Data](https://img.shields.io/badge/data-Materials%20Project-purple)
+![WBM](https://img.shields.io/badge/benchmark-Matbench%20Discovery-purple)
 
-A GNoME-inspired active learning pipeline for identifying stable inorganic materials using a pre-trained [CHGNet](https://github.com/CederGroupHub/chgnet) surrogate with Monte Carlo Dropout uncertainty estimation. Motivated by DeepMind's [GNoME paper (Merchant et al., Nature 2023)](https://www.nature.com/articles/s41586-023-06735-9), this project investigates how uncertainty-aware acquisition strategies compare to greedy baselines when the labeling budget is small relative to the candidate pool.
+A GNoME-inspired active learning pipeline for identifying stable inorganic materials using a pre-trained [CHGNet](https://github.com/CederGroupHub/chgnet) surrogate with Monte Carlo Dropout uncertainty estimation. Scales to the full [WBM dataset](https://matbench-discovery.materialsproject.org/) (256,963 crystal structures) used in the Matbench Discovery benchmark.
 
-## Key Result
+## Key Results
 
-> With only **20% of the candidate budget labeled** (400 / 2000 structures), both Greedy and UCB acquisition discovered **93–95% of the top-100 most stable structures** in the pool — compared to **25% for random sampling**.
+### WBM benchmark (256K structures)
 
-| Strategy      | Top-100 Recall | Best Found (eV/atom) | Labeled |
-|---------------|:--------------:|:--------------------:|:-------:|
-| Random        | 25%            | −4.375               | 400 / 2000 |
-| Greedy (μ)    | **95%**        | −4.403               | 400 / 2000 |
-| UCB (λ=1.0)   | **93%**        | −4.403               | 400 / 2000 |
+> With only **2,200 labeled structures** (0.9% of pool), UCB acquisition found **425 stable materials** — vs ~367 expected by random screening. **1.16x Discovery Acceleration Factor.**
 
-The result that Greedy ≈ UCB here is itself informative: CHGNet's physics-informed pre-trained representations are accurate enough that the frozen backbone's mean predictions already provide strong signal, leaving limited room for uncertainty-driven exploration to improve on pure exploitation in a pool of this size.
+| Strategy | Stable found | DAF | Budget |
+|---|:-:|:-:|:-:|
+| Random | 370 | 1.009x | 2,200 / 256,963 |
+| Greedy (μ) | 412 | 1.124x | 2,200 / 256,963 |
+| **UCB (λ=1.0)** | **425** | **1.159x** | 2,200 / 256,963 |
+
+Pool: 256,963 WBM structures · 42,825 stable (16.7% prevalence) · DAF = (precision at budget) / prevalence
+
+### Materials Project (2K structures)
+
+> With **20% of the candidate budget labeled**, Greedy and UCB discovered **93–95% of the top-100 most stable structures** — vs 25% for random.
+
+| Strategy | Top-100 Recall | Best Found (eV/atom) |
+|---|:-:|:-:|
+| Random | 25% | −4.375 |
+| Greedy (μ) | **95%** | −4.403 |
+| UCB (λ=1.0) | **93%** | −4.403 |
 
 ## Method
 
 ```
-Materials Project pool (2000 structures)
+WBM pool (256,963 structures)
          │
          ▼
-  CHGNet graph_converter → CrystalGraph objects (pre-computed once)
+  CHGNet graph_converter → CrystalGraph objects
          │
-   ┌─────┴──────────────────────────────────┐
-   │  Active Learning Loop (10 iterations)  │
-   │                                        │
-   │  1. Fine-tune CHGNet MLP head          │
-   │     on labeled set (frozen backbone)   │
-   │                                        │
-   │  2. MC Dropout inference               │
-   │     N=10 forward passes → μ, σ         │
-   │                                        │
-   │  3. Acquisition: select top-30 by      │
-   │     score(x) = μ(x) − λ·σ(x)          │
-   │                                        │
-   │  4. Query ground-truth DFT energy      │
-   │     (oracle from Materials Project)    │
-   └─────────────────────────────────────────┘
+   ┌─────┴────────────────────────────────────────┐
+   │  Active Learning Loop (20 iterations)        │
+   │                                              │
+   │  1. Stage 1: point estimate on 25K random    │
+   │     candidates (no dropout, fast)            │
+   │                                              │
+   │  2. Stage 2: MC Dropout (10 passes) on       │
+   │     top 5K by Stage 1 → μ, σ per structure  │
+   │                                              │
+   │  3. Acquisition: select top-100 by           │
+   │     UCB score = μ(x) − λ·σ(x)               │
+   │                                              │
+   │  4. Oracle: look up DFT e_above_hull         │
+   │     from WBM summary (simulated DFT)         │
+   └──────────────────────────────────────────────┘
          │
          ▼
-  Track: best formation energy found,
-         top-100 recall @ each iteration
+  Track: DAF per iteration
+         stable structures found vs. budget
 ```
 
-**Surrogate model**: CHGNet v0.3.0 (412,525 total parameters). The atom/bond/angle convolution layers are frozen; only the 12,738-parameter MLP head is fine-tuned each iteration. Dropout (p=0.3) is enabled in the MLP head during inference to produce MC Dropout uncertainty estimates.
+**Surrogate**: CHGNet v0.3.0 (412,525 params). Backbone frozen; MC Dropout (p=0.3) in the MLP readout head produces per-structure uncertainty estimates.
 
-**Acquisition**:
-- `RandomStrategy`: uniform random sampling (baseline)
-- `GreedyStrategy`: select by lowest predicted μ (pure exploitation)
-- `UCBStrategy`: select by `μ(x) − λ·σ(x)`, λ=1.0 (exploration–exploitation tradeoff)
+**Key finding**: Fine-tuning the surrogate on the small initial labeled set *hurts* performance on WBM. CHGNet was pre-trained on 700K MP structures and is already well-calibrated — updating on a small biased sample causes catastrophic forgetting. The static pre-trained surrogate with MC Dropout uncertainty achieves consistent 1.1–1.3x DAF improvement.
 
-## Results
-
-![Comparison plot](results/comparison_chgnet.png)
+**Acquisition strategies**:
+- `RandomStrategy`: uniform random (baseline)
+- `GreedyStrategy`: lowest predicted μ (pure exploitation)
+- `UCBStrategy`: `μ(x) − λ·σ(x)`, λ=1.0 (exploration–exploitation)
 
 ## Setup
-
-**Requirements**: Python 3.9+, ~4 GB disk for Materials Project cache
 
 ```bash
 git clone https://github.com/0xSoftBoi/gnome-materials.git
 cd gnome-materials
 python3 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Materials Project API key**: The CHGNet experiment downloads 83,794 DFT-computed structures from the [Materials Project](https://materialsproject.org/). You need a free API key:
+WBM data files are downloaded automatically on first run. For the Materials Project experiment, set your API key:
 
 ```bash
-export MP_API_KEY="your_api_key_here"  # or set in shell profile
+export MP_API_KEY="your_key_here"  # get free key at materialsproject.org/api
 ```
 
-Get a key at [materialsproject.org/api](https://next-gen.materialsproject.org/api).
-
-## Reproducing the Experiment
+## Reproducing the Experiments
 
 ```bash
-# CHGNet surrogate experiment (main result — ~2 hours on CPU)
+# WBM active learning campaign — full 256K (~2 hours on CPU)
+python3 main.py --experiment wbm
+
+# Quick demo on 20K subset (~15 minutes)
+python3 main.py --experiment wbm --wbm-max 20000
+
+# CHGNet surrogate on Materials Project (2K structures, ~30 min)
 python3 main.py --experiment chgnet
 
-# Synthetic GNN scaling analysis
+# Synthetic scaling / lambda sensitivity
 python3 main.py --experiment scaling
-
-# UCB lambda sensitivity (λ ∈ {0.0, 0.5, 1.0, 2.0, 5.0})
 python3 main.py --experiment lambda
 ```
 
-Output plots are saved to `results/`. The Materials Project structure cache (`data/mp_cache/structures_raw.pt`) is created on first run and reused on subsequent runs.
-
-## Dataset
-
-- **Source**: [Materials Project](https://materialsproject.org/) via `mp-api`
-- **Pool**: 2,000 structures sampled from 83,794 entries with `energy_above_hull ≤ 0.1 eV/atom` (near-stable compounds)
-- **Labels**: DFT formation energy per atom (GGA/GGA+U), queried as ground truth during active learning
-- **Initial training set**: 100 randomly sampled structures (5% of pool)
-- **Budget**: 10 iterations × 30 structures/iteration = 300 additional labels (15% of pool)
-
-## Implementation Notes
-
-**Why CPU?** CHGNet is forced to CPU via `CHGNet.load(use_device='cpu')`. On Apple Silicon with 16 GB unified memory, pre-computing 2,000 CrystalGraphs and accumulating gradients through the backbone during fine-tuning causes silent OOM kills on MPS. CPU and MPS have comparable throughput for this GNN at this batch size.
-
-**Shared graph cache**: All 2,000 CrystalGraph objects are pre-computed once and shared across the three strategy runs (≈60 ms/structure × 2,000 = ~2 min one-time cost). Without this, graph conversion would dominate per-iteration runtime.
-
-**MC Dropout on head only**: `model.eval(); model.mlp.train()` — backbone is in eval mode (no dropout), only the MLP head has dropout active during inference. The pre-trained CHGNet backbone has p=0 dropout; p=0.3 is set explicitly on the MLP head in `CHGNetSurrogate.__init__`.
+Output plots saved to `results/`.
 
 ## Project Structure
 
 ```
 gnome-materials/
-├── main.py                        # Experiment entry points (--experiment flag)
-├── requirements.txt
+├── main.py                        # Experiment entry points
 ├── data/
-│   ├── dataset.py                 # Synthetic crystal dataset (scaling/lambda experiments)
-│   ├── mp_dataset.py              # Materials Project graph dataset
-│   └── mp_dataset_chgnet.py       # Materials Project raw-structure dataset for CHGNet
+│   ├── wbm_dataset.py             # WBM loader, DFT oracle labels
+│   ├── mp_dataset_chgnet.py       # Materials Project raw-structure dataset
+│   └── dataset.py                 # Synthetic dataset (scaling experiments)
 ├── model/
-│   ├── gnn.py                     # GNN + MC Dropout (synthetic experiments)
-│   └── chgnet_surrogate.py        # CHGNet fine-tuning + MC Dropout wrapper
+│   └── chgnet_surrogate.py        # CHGNet + MC Dropout wrapper
 ├── active_learning/
 │   ├── strategies.py              # Random / Greedy / UCB
-│   ├── loop.py                    # AL loop (synthetic GNN)
-│   └── loop_chgnet.py             # AL loop (CHGNet surrogate)
+│   ├── loop_wbm.py                # WBM AL loop (DAF metric, two-stage shortlist)
+│   └── loop_chgnet.py             # MP AL loop (top-100 recall metric)
 └── evaluation/
-    └── metrics.py                 # Plotting and summary statistics
+    ├── wbm_metrics.py             # DAF plotting
+    └── metrics.py                 # Formation energy / recall plotting
 ```
 
 ## Citation
 
-If this work is useful, please also cite the underlying tools and datasets:
+If this work is useful, please also cite:
 
 ```bibtex
-@article{merchant2023gnome,
-  title   = {Scaling deep learning for materials discovery},
-  author  = {Merchant, Amil and Batzner, Simon and Schoenholz, Samuel S and
-             Aykol, Muratahan and Cheon, Gowoon and Cubuk, Ekin Dogus},
-  journal = {Nature},
-  volume  = {624},
-  pages   = {80--85},
-  year    = {2023},
-  doi     = {10.1038/s41586-023-06735-9}
+@article{riebesell2024matbench,
+  title   = {Matbench Discovery: A Framework to Evaluate Machine Learning
+             Crystal Stability Predictions},
+  author  = {Riebesell, Janosh and others},
+  journal = {Nature Machine Intelligence},
+  year    = {2024},
+  doi     = {10.1038/s42256-024-00954-x}
 }
 
 @article{deng2023chgnet,
@@ -163,10 +154,8 @@ If this work is useful, please also cite the underlying tools and datasets:
   title     = {Dropout as a {B}ayesian Approximation: Representing Model Uncertainty
                in Deep Learning},
   author    = {Gal, Yarin and Ghahramani, Zoubin},
-  booktitle = {Proceedings of the 33rd International Conference on Machine Learning},
+  booktitle = {ICML},
   year      = {2016},
   url       = {https://arxiv.org/abs/1506.02142}
 }
 ```
-
-**Materials Project**: Jain, A. et al. *APL Materials* 1, 011002 (2013). [doi:10.1063/1.4812323](https://doi.org/10.1063/1.4812323)
