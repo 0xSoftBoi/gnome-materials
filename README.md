@@ -11,15 +11,15 @@ A GNoME-inspired active learning pipeline for identifying stable inorganic mater
 
 ### WBM benchmark (256K structures)
 
-> With only **2,200 labeled structures** (0.9% of pool), UCB acquisition found **425 stable materials** — vs ~367 expected by random screening. **1.16x Discovery Acceleration Factor.**
+> With only **2,200 labeled structures** (0.9% of pool), both Greedy and UCB acquisition find **~415 stable materials** — vs ~365 expected by random screening. **1.13x Discovery Acceleration Factor** (mean across 5 random seeds).
 
 | Strategy | Stable found | DAF | Budget |
 |---|:-:|:-:|:-:|
-| Random | 370 | 1.009x | 2,200 / 256,963 |
-| Greedy (μ) | 412 | 1.124x | 2,200 / 256,963 |
-| **UCB (λ=1.0)** | **425** | **1.159x** | 2,200 / 256,963 |
+| Random | 364.8 ± 10.2 | 0.995 ± 0.028 | 2,200 / 256,963 |
+| **Greedy (μ)** | **415.8 ± 6.2** | **1.134 ± 0.017** | 2,200 / 256,963 |
+| UCB (λ=1.0) | 414.4 ± 9.5 | 1.130 ± 0.026 | 2,200 / 256,963 |
 
-Pool: 256,963 WBM structures · 42,825 stable (16.7% prevalence) · DAF = (precision at budget) / prevalence
+Pool: 256,963 WBM structures · 42,825 stable (16.7% prevalence) · DAF = (precision at budget) / prevalence · results averaged over 5 random seeds
 
 ### Materials Project (2K structures)
 
@@ -62,7 +62,7 @@ WBM pool (256,963 structures)
 
 **Surrogate**: CHGNet v0.3.0 (412,525 params). Backbone frozen; MC Dropout (p=0.3) in the MLP readout head produces per-structure uncertainty estimates.
 
-**Key finding**: Fine-tuning the surrogate on the small initial labeled set *hurts* performance on WBM. CHGNet was pre-trained on 700K MP structures and is already well-calibrated — updating on a small biased sample causes catastrophic forgetting. The static pre-trained surrogate with MC Dropout uncertainty achieves consistent 1.1–1.3x DAF improvement.
+**Key finding**: Fine-tuning the surrogate on the small initial labeled set *hurts* performance on WBM. CHGNet was pre-trained on 700K MP structures and is already well-calibrated — updating on a small biased sample causes catastrophic forgetting. The static pre-trained surrogate with MC Dropout uncertainty achieves a consistent **~1.13x DAF improvement** over random (5-seed mean ± std). Greedy (pure exploitation) and UCB (exploration–exploitation) perform equivalently at this budget, suggesting CHGNet's energy predictions are reliable enough that uncertainty adds little signal at 0.9% labeling budget.
 
 **Acquisition strategies**:
 - `RandomStrategy`: uniform random (baseline)
